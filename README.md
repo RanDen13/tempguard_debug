@@ -70,3 +70,25 @@ Once both the Web Dashboard and the ESP8266 are running:
 - **Debugging:** Open your browser's Developer Console (F12) to view `FIREBASE DATA:` logs and confirm data is arriving from the database.
 
 _(Note: For testing purposes, you can temporarily change the logging interval in your ESP code from 7200 seconds to 60 seconds to see immediate history updates, but remember to change it back for production use!)_
+
+## Known Issues & Limitations
+
+1. **In-Browser Memory for Daily Logs:** Currently, short-term session logs (like toast alerts or quick notifications) might only exist in the browser's temporary memory. Refreshing the dashboard could wipe these unsaved short-term alerts.
+2. **Offline Data Loss:** If the ESP8266 loses Wi-Fi connection exactly when it is supposed to log the 2-hour average, that data point will be lost. The dashboard's parser gracefully handles the missing data, but the gap will remain in your database.
+3. **Open Database Rules:** If your Firebase Database is set to test mode (`".read": true, ".write": true`), anyone with the URL can view or alter your temperature data.
+
+## Future Improvements & Suggestions
+
+Here are a few recommendations to make the project more robust, secure, and easier to maintain in the future:
+
+1. **Implement Local Hardware Caching (SPIFFS / LittleFS):**
+   - *Fix for Offline Loss:* Program the ESP8266 to save sensor readings locally to its flash memory if Wi-Fi disconnects. Once Wi-Fi is restored, it can upload the cached backlog to Firebase to prevent data gaps.
+2. **Firebase Authentication & Security Rules:**
+   - Implement Firebase Auth so only authorized microcontrollers can write to the database, and only logged-in users can view the dashboard.
+   - Update Firebase Security rules so that read/write access is restricted.
+3. **Hardware Upgrade (ESP32):**
+   - While the ESP8266 works fine, migrating to an **ESP32** offers better RAM, dual-core processing, and significantly improved handling of HTTPS/SSL connections, which Firebase relies heavily upon. This leads to fewer disconnects.
+4. **Cloud-Side Data Aggregation:**
+   - *Alternative Approach:* Instead of the ESP8266 calculating the 2-hour average, you could have the ESP push raw data every 5 minutes. Then, you can use **Firebase Cloud Functions** to calculate and store the 2-hour averages on the cloud. This reduces the processing load and memory usage on the microcontroller.
+5. **PWA (Progressive Web App):**
+   - Add a `manifest.json` and a simple Service Worker to your web dashboard. This will allow you to "install" the dashboard as a native-feeling app on your phone's home screen.
