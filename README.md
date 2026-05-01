@@ -12,7 +12,12 @@ The project consists of two primary components:
 ### How It Works
 
 - **Realtime Updates:** The web dashboard uses the Firebase Web SDK to listen for live updates from the Firebase Database. When the hardware updates its designated node (e.g., `Station1`), changes reflect instantly on the dashboard frontend.
-- **History Logging:** Every 2 hours, the ESP8266 computes an average of the sensor readings and pushes this historical data to an `averages` node in Firebase. The web dashboard dynamically parses this data, mapping it chronologically to render accurate history charts while automatically handling any missing upload periods.
+- **History Logging:** 
+  - **The Math:** Every 2 hours, the ESP8266 computes an average of the collected sensor readings.
+  - **The Timestamping:** The ESP8266 uses an NTP (Network Time Protocol) client to fetch the current date and time. It creates a unique tag for that specific 2-hour window (e.g., `0501261200_2HR`).
+  - **Firebase Push:** It pushes this data packet to the Realtime Database under the path `/averages/Station1/<TIMESTAMP>`.
+  - **Dashboard Render:** The web dashboard listens for changes. When new data arrives in the `averages` node, it parses the timestamped folders, sorts them chronologically, and renders the history chart (automatically handling offline gaps if they exist).
+  - **What you need to do in Firebase:** *Absolutely nothing.* Because Firebase acts as a flexible JSON document, you do not need to manually create an `averages` folder beforehand. The very first time your ESP8266 hits the 2-hour mark, Firebase will automatically create the `averages` node and save the data. Just ensure your database rules allow writing (e.g., `".write": true`).
 
 ## Setup and Installation
 
