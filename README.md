@@ -12,59 +12,54 @@ The project consists of two primary components:
 ### How It Works
 
 - **Realtime Updates:** The web dashboard uses the Firebase Web SDK to listen for live updates from the Firebase Database. When the hardware updates its designated node (e.g., `Station1`), changes reflect instantly on the dashboard frontend.
-- **History Logging:** 
+- **History Logging:**
   - **The Math:** Every 2 hours, the ESP8266 computes an average of the collected sensor readings.
   - **The Timestamping:** The ESP8266 uses an NTP (Network Time Protocol) client to fetch the current date and time. It creates a unique tag for that specific 2-hour window (e.g., `0501261200_2HR`).
   - **Firebase Push:** It pushes this data packet to the Realtime Database under the path `/averages/Station1/<TIMESTAMP>`.
   - **Dashboard Render:** The web dashboard listens for changes. When new data arrives in the `averages` node, it parses the timestamped folders, sorts them chronologically, and renders the history chart (automatically handling offline gaps if they exist).
-  - **What you need to do in Firebase:** *Absolutely nothing.* Because Firebase acts as a flexible JSON document, you do not need to manually create an `averages` folder beforehand. The very first time your ESP8266 hits the 2-hour mark, Firebase will automatically create the `averages` node and save the data. Just ensure your database rules allow writing (e.g., `".write": true`).
+  - **What you need to do in Firebase:** _Absolutely nothing._ Because Firebase acts as a flexible JSON document, you do not need to manually create an `averages` folder beforehand. The very first time your ESP8266 hits the 2-hour mark, Firebase will automatically create the `averages` node and save the data. Just ensure your database rules allow writing (e.g., `".write": true`).
 
-## Setup and Installation
+## Step-by-Step Setup Guide
 
-### 1. Web Dashboard
+Follow these instructions to set up the entire project from scratch.
 
-Since the project uses modern ES modules, it must be run via a local HTTP server (not by simply double-clicking `index.html`).
+### Step 1: Firebase Configuration
 
-**Option A: Using Firebase CLI (Recommended)**
-If you have Firebase CLI installed:
+1. Go to the [Firebase Console](https://console.firebase.google.com/) and create a new project.
+2. Navigate to **Realtime Database** and click **Create Database**.
+3. Start in **Test Mode** (this temporarily sets your database rules to `".read": true, ".write": true` so the ESP8266 can push data without complex authentication).
+4. Go to **Project Overview > Project Settings**. Under "Your apps", click the web icon (`</>`) to add a new **Web App**.
+5. Copy the `firebaseConfig` object (which contains your `apiKey`, `databaseURL`, etc.) provided by Firebase.
 
-```bash
-npx firebase-tools serve
-# or
-firebase serve
-```
+### Step 2: Web Dashboard Setup
 
-Then navigate to the provided localhost URL (e.g., `http://localhost:5000`) in your browser.
+1. Open the `TempGuard-Software/script.js` file in a text editor.
+2. Locate the `const firebaseConfig = { ... }` block at the very top of the file.
+3. Replace the placeholder values with the config object you copied from Firebase in Step 1.
+4. **Run the Dashboard:** Since the project uses modern ES modules (`import`/`export`), it must be run via a local HTTP server. Do not just double-click `index.html`.
+   - **Option A (Firebase CLI):** Run `npx firebase-tools serve` in your terminal and open `http://localhost:5000`.
+   - **Option B (VS Code):** Right-click `TempGuard-Software/index.html` and select **"Open with Live Server"**.
 
-**Option B: Using VS Code Live Server**
-
-- Open the project in VS Code.
-- Navigate to the `TempGuard-Software/` directory.
-- Right-click on `index.html` and select **"Open with Live Server"**.
-
-**Option C: Using http-server**
-
-```bash
-npx http-server ./TempGuard-Software
-```
-
-### 2. ESP8266 Microcontroller
+### Step 3: ESP8266 Microcontroller Setup
 
 To deploy the hardware sensor node, you will need the **Arduino IDE**.
 
-**Prerequisites:**
-Ensure you have the following libraries installed via the Arduino Library Manager:
+**Library Prerequisites:**
+Install these via the Arduino Library Manager (`Sketch > Include Library > Manage Libraries`):
 
 - `Firebase ESP Client` (by mobizt)
 - `Adafruit BME680 Library`
 - `NTPClient`
 
-**Deployment Steps:**
+**Hardware & Upload Steps:**
 
-1. Open your C++ sketch in the Arduino IDE.
-2. Verify your Wi-Fi credentials and Firebase database URL/API key are correctly set.
-3. Define your Station ID at the top of the code (e.g., `#define STATION_ID "Station1"`).
-4. Connect your ESP8266 to your PC, select the correct Port and Board, and click **Upload**.
+1. Wire the BME680 sensor to your ESP8266 via I2C (typically SDA to D2, SCL to D1).
+2. Open your C++ sketch in the Arduino IDE.
+3. Update the following credentials in the code:
+   - Your Wi-Fi `SSID` and `PASSWORD`.
+   - Your Firebase `API_KEY` and `DATABASE_URL` (grab these from your Step 1 config).
+4. Define your Station ID at the top of the code (e.g., `#define STATION_ID "Station1"`).
+5. Connect your ESP8266 to your PC, select the correct COM Port and Board (e.g., NodeMCU 1.0), and click **Upload**.
 
 ## Verification
 
@@ -87,13 +82,13 @@ _(Note: For testing purposes, you can temporarily change the logging interval in
 Here are a few recommendations to make the project more robust, secure, and easier to maintain in the future:
 
 1. **Implement Local Hardware Caching (SPIFFS / LittleFS):**
-   - *Fix for Offline Loss:* Program the ESP8266 to save sensor readings locally to its flash memory if Wi-Fi disconnects. Once Wi-Fi is restored, it can upload the cached backlog to Firebase to prevent data gaps.
+   - _Fix for Offline Loss:_ Program the ESP8266 to save sensor readings locally to its flash memory if Wi-Fi disconnects. Once Wi-Fi is restored, it can upload the cached backlog to Firebase to prevent data gaps.
 2. **Firebase Authentication & Security Rules:**
    - Implement Firebase Auth so only authorized microcontrollers can write to the database, and only logged-in users can view the dashboard.
    - Update Firebase Security rules so that read/write access is restricted.
 3. **Hardware Upgrade (ESP32):**
    - While the ESP8266 works fine, migrating to an **ESP32** offers better RAM, dual-core processing, and significantly improved handling of HTTPS/SSL connections, which Firebase relies heavily upon. This leads to fewer disconnects.
 4. **Cloud-Side Data Aggregation:**
-   - *Alternative Approach:* Instead of the ESP8266 calculating the 2-hour average, you could have the ESP push raw data every 5 minutes. Then, you can use **Firebase Cloud Functions** to calculate and store the 2-hour averages on the cloud. This reduces the processing load and memory usage on the microcontroller.
+   - _Alternative Approach:_ Instead of the ESP8266 calculating the 2-hour average, you could have the ESP push raw data every 5 minutes. Then, you can use **Firebase Cloud Functions** to calculate and store the 2-hour averages on the cloud. This reduces the processing load and memory usage on the microcontroller.
 5. **PWA (Progressive Web App):**
    - Add a `manifest.json` and a simple Service Worker to your web dashboard. This will allow you to "install" the dashboard as a native-feeling app on your phone's home screen.
